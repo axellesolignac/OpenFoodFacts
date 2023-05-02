@@ -1,5 +1,6 @@
 from Data_preparation.NettoyageValeursProblematiques_GuillaumeCHUPE import *
 from Data_preparation.datas_filter import datas_filter
+from datetime import datetime
 import pandas as pd
 import time
 
@@ -60,6 +61,8 @@ class Pipeline:
     def save_dataset(self):
         """Save dataset to CSV file"""
         print("Saving dataset...\n")
+        # Save the current dataframe to CSV file adding the current date to the filename
+        self.df.to_csv("./Saves/Datasets/dataset_" + datetime.now().strftime("%d-%m-%Y %Hh%Mm%Ss") + ".csv", index=False)
         print("Dataset saved...\n")
         pass
 
@@ -81,6 +84,7 @@ if __name__ == '__main__':
     print("# Pipeline Open Food Facts V1.0             #")
     print("# EGHIAZARIAN Sacha                         #")
     print("# SOLIGNAC Axelle                           #")
+    print("# PROUST Baptiste                           #")
     print("# M2 Datascientist 2023                     #")
     print("#############################################")
     print("")
