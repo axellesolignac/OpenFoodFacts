@@ -26,7 +26,7 @@ class Pipeline:
 
     def load_dataset(self):
         """Load dataset from Open Food Facts"""
-        print("Loading dataset...\n")
+        print("Loading dataset...")
         self.df = pd.read_csv("./datas/en.openfoodfacts.org.products.csv", sep="\t", nrows=1000)
         print("Dataset loaded...\n")
         pass
@@ -60,7 +60,7 @@ class Pipeline:
 
     def save_dataset(self):
         """Save dataset to CSV file"""
-        print("Saving dataset...\n")
+        print("Saving dataset...")
         # Save the current dataframe to CSV file adding the current date to the filename
         self.df.to_csv("./Saves/Datasets/dataset_" + datetime.now().strftime("%d-%m-%Y %Hh%Mm%Ss") + ".csv", index=False)
         print("Dataset saved...\n")
@@ -74,7 +74,7 @@ class Pipeline:
 
     def save_clusters(self):
         """Save clusters to CSV file"""
-        print("Saving clusters...\n")
+        print("Saving clusters...")
         print("Clusters saved...\n")
         pass
 
