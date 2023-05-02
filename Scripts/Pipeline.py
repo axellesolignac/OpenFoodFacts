@@ -1,15 +1,18 @@
+from Data_preparation.NettoyageValeursProblematiques_GuillaumeCHUPE import *
+from Data_preparation.datas_filter import datas_filter
+import pandas as pd
 import time
 
 class Pipeline:
     def __init__(self):
+        self.df = None
+        self.filter = datas_filter()
         pass
 
     def run(self):
         """Run entirely the pipeline"""
         # Load dataset
         self.load_dataset()
-        # Filter dataset
-        self.filter_dataset()
         # Clean dataset
         self.clean_dataset()
         # Save dataset
@@ -22,32 +25,54 @@ class Pipeline:
 
     def load_dataset(self):
         """Load dataset from Open Food Facts"""
-        print("Loading dataset...")
+        print("Loading dataset...\n")
+        self.df = pd.read_csv("./datas/en.openfoodfacts.org.products.csv", sep="\t", nrows=1000)
+        print("Dataset loaded...\n")
         pass
 
-    def filter_dataset(self):
+    def filter_dataset(self, nan_threshold=0.3):
         """Filter dataset to keep only relevant data"""
-        print("Filtering dataset...")
+        print("Filtering dataset...\n")
+        # Filter only number features
+        self.df = self.filter.filter(self.df, nan_percent=nan_threshold * 100)
+        # Print dataset informations
+        print(self.df.shape)
+        print("Datas filtered...\n")
         pass
 
     def clean_dataset(self):
         """Clean dataset to remove missing values"""
-        print("Cleaning dataset...")
+        print("Cleaning dataset...\n")
+        # Drop columns with more than 50% of missing values
+        threshold = 0.5
+        self.df = drop_columns_with_missing_values(self.df, threshold=threshold)
+        # Filter only number features
+        self.filter_dataset(nan_threshold=threshold)
+        # Impute missing values
+        nan_value = np.nan
+        self.df = impute_missing_values(self.df, columns=self.df.columns, missing_values=nan_value, n_neighbors=5, weights='uniform')
+        # Downcast features to reduce memory size
+        self.df = self.filter.downcast(self.df)
+        self.df.info()
+        print("Dataset cleaned...\n")
         pass
 
     def save_dataset(self):
         """Save dataset to CSV file"""
-        print("Saving dataset...")
+        print("Saving dataset...\n")
+        print("Dataset saved...\n")
         pass
 
     def run_clustering(self):
         """Run clustering algorithm on dataset"""
-        print("Running clustering algorithm...")
+        print("Running clustering algorithm...\n")
+        print("Clustering algorithm runned...\n")
         pass
 
     def save_clusters(self):
         """Save clusters to CSV file"""
-        print("Saving clusters...")
+        print("Saving clusters...\n")
+        print("Clusters saved...\n")
         pass
 
 
@@ -60,7 +85,7 @@ if __name__ == '__main__':
     print("#############################################")
     print("")
 
-    print("Starting pipeline...")
+    print("Starting pipeline...\n")
     startingTime = time.time()    
     pipeline = Pipeline()
     pipeline.run()
