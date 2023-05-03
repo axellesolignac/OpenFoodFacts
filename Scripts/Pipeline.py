@@ -1,5 +1,10 @@
 from Data_preparation.NettoyageValeursProblematiques_GuillaumeCHUPE import *
 from Data_preparation.datas_filter import datas_filter
+from Data_analysis.datas_visualizer import datas_visualizer
+from sklearn.cluster import KMeans
+from Models.kmeans import kmeans
+from Models.hierarchical_clustering import hie_clustering, plot_dendrogram
+from Models.dbscan import dbscan_clustering, dbscan
 from datetime import datetime
 import pandas as pd
 import time
@@ -27,7 +32,7 @@ class Pipeline:
     def load_dataset(self):
         """Load dataset from Open Food Facts"""
         print("Loading dataset...")
-        self.df = pd.read_csv("./datas/en.openfoodfacts.org.products.csv", sep="\t", nrows=1000)
+        self.df = pd.read_csv("./datas/en.openfoodfacts.org.products.csv", sep="\t", nrows=200000)
         print("Dataset loaded...\n")
         pass
 
@@ -35,7 +40,7 @@ class Pipeline:
         """Filter dataset to keep only relevant data"""
         print("Filtering dataset...\n")
         # Filter only number features
-        self.df = self.filter.filter(self.df, nan_percent=nan_threshold * 100)
+        self.df = self.filter.filter(self.df, type="number", nan_percent=nan_threshold * 100)
         # Print dataset informations
         print(self.df.shape)
         print("Datas filtered...\n")
@@ -44,8 +49,8 @@ class Pipeline:
     def clean_dataset(self):
         """Clean dataset to remove missing values"""
         print("Cleaning dataset...\n")
-        # Drop columns with more than 50% of missing values
-        threshold = 0.5
+        # Drop columns with more than 90% of missing values
+        threshold = 0.2
         self.df = drop_columns_with_missing_values(self.df, threshold=threshold)
         # Filter only number features
         self.filter_dataset(nan_threshold=threshold)
@@ -54,6 +59,10 @@ class Pipeline:
         self.df = impute_missing_values(self.df, columns=self.df.columns, missing_values=nan_value, n_neighbors=5, weights='uniform')
         # Downcast features to reduce memory size
         self.df = self.filter.downcast(self.df)
+
+        # Drop every columns that contains inf or -inf
+        self.df.replace([np.inf, -np.inf], np.nan, inplace=True)
+        self.df.dropna(axis=1, how="any", inplace=True)
         self.df.info()
         print("Dataset cleaned...\n")
         pass
@@ -69,6 +78,16 @@ class Pipeline:
     def run_clustering(self):
         """Run clustering algorithm on dataset"""
         print("Running clustering algorithm...\n")
+        # Run clustering algorithm
+        kmeans(self.df, method="elbow")
+        
+        kmeans_model = KMeans(n_clusters=3, random_state=0)
+        kmeans_model.fit(self.df)
+        clusters = kmeans_model.predict(self.df)
+        self.df["cluster"] = clusters
+        dv = datas_visualizer()
+        dv.datas = self.df
+        dv.plot(x="trans-fat_100g", y="nutriscore_score", color="cluster", x_label="trans fat", y_label="nutriscore")
         print("Clustering algorithm runned...\n")
         pass
 
@@ -80,8 +99,10 @@ class Pipeline:
 
 
 if __name__ == '__main__':
+    VERSION = "1.0"
+
     print("#############################################")
-    print("# Pipeline Open Food Facts V1.0             #")
+    print("# Pipeline Open Food Facts V" + VERSION + "             #")
     print("# EGHIAZARIAN Sacha                         #")
     print("# SOLIGNAC Axelle                           #")
     print("# PROUST Baptiste                           #")
@@ -97,7 +118,7 @@ if __name__ == '__main__':
     print("End of pipeline.")
     print("")
     print("#############################################")
-    print("# End of Pipeline Open Food Facts V1.0      #")
+    print("# End of Pipeline Open Food Facts V" + VERSION + "      #")
     # Print elapsed time fill and crop the string to 45 characters to fit in the box
     elipsedString = f"# Runned in : {endingTime - startingTime:.2f} seconds"
     if len(elipsedString) > 44:
