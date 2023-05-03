@@ -1,10 +1,10 @@
-from data_loader import get_data
+#from data_loader import get_data
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.feature_selection import VarianceThreshold
 import unittest
 import numpy as np
 import matplotlib.pyplot as plt
-from fsfc.generic import NormalizedCut
+#from fsfc.generic import NormalizedCut
 from sklearn.metrics.pairwise import rbf_kernel
 
 class FeatureSelection:
