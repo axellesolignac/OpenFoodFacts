@@ -8,6 +8,7 @@ from Models.dbscan import dbscan_clustering, dbscan
 from datetime import datetime
 import pandas as pd
 import time
+import sys
 
 class Pipeline:
     def __init__(self):
@@ -32,7 +33,7 @@ class Pipeline:
     def load_dataset(self):
         """Load dataset from Open Food Facts"""
         print("Loading dataset...")
-        self.df = pd.read_csv("./datas/en.openfoodfacts.org.products.csv", sep="\t", nrows=200000)
+        self.df = pd.read_csv("./datas/en.openfoodfacts.org.products.csv", sep="\t", nrows=10000)
         print("Dataset loaded...\n")
         pass
 
@@ -100,6 +101,29 @@ class Pipeline:
 
 if __name__ == '__main__':
     VERSION = "1.0"
+
+    # Command line arguments
+    if len(sys.argv) >= 2:
+        for arg in sys.argv:
+            if arg == "-h":
+                print("Pipeline.py [-h] [-v] [-p <path>] [-l <datetime>]")
+                print("  -h : Display help")
+                print("  -v : Display version")
+                print("  -p <path> : Prediction only, Path to the dataset to predict")
+                print("  -l <datetime> : Load a dataset from a save, datetime is the date of the save")
+                exit()
+            elif arg == "-v":
+                print("Pipeline Open Food Facts V" + VERSION)
+                exit()
+            # Function will be added later
+            elif arg == "-p":
+                print("Prediction only")
+                exit()
+            elif arg == "-l":
+                print("Load a dataset from a save")
+                exit()
+        print("Unknown argument " + arg)
+        exit()
 
     print("#############################################")
     print("# Pipeline Open Food Facts V" + VERSION + "             #")
