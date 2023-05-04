@@ -12,20 +12,26 @@ from datetime import datetime
 import pandas as pd
 import time
 import sys
+import os
 
 class Pipeline:
-    def __init__(self):
+    def __init__(self, predict_only : bool = False, load : str = None):
         self.df = None
+        self.predict_only = predict_only
+        self.load = load
         self.filter = datas_filter()
         self.dv = datas_visualizer()
+        self.pca_df = None
         pass
 
     def run(self):
         """Run entirely the pipeline"""
         # Load dataset
         self.load_dataset()
-        # Clean dataset
-        self.clean_dataset()
+        # Clean dataset if it's not a new one
+        if self.load is None:
+            self.clean_dataset()
+        self.save_dataset()
         # Reduce dimensionality
         self.reduce_dim()
         # Boosting
@@ -41,7 +47,14 @@ class Pipeline:
     def load_dataset(self):
         """Load dataset from Open Food Facts"""
         print("Loading dataset...")
-        self.df = pd.read_csv("./datas/en.openfoodfacts.org.products.csv", sep="\t", nrows=20000)
+        if self.load is not None:
+            if os.path.exists(self.load):
+                self.df = pd.read_csv(load)
+            else:
+                print(f"The file {self.load} was not found")
+                exit(1)
+        else:
+            self.df = pd.read_csv("./datas/en.openfoodfacts.org.products.csv", sep="\t", nrows=50000)
         self.dv.datas = self.df
         print("Dataset loaded...\n")
         pass
@@ -49,16 +62,29 @@ class Pipeline:
     def reduce_dim(self):
         print("Reducing the dimentions...\n")
         pca = PCA(n_components=len(self.df.columns))
-        pca.fit(self.df)
-        transformed_df = pca.transform(self.df)
-        # Convert to dataframe
-        transformed_df = pd.DataFrame(transformed_df)
-        print(transformed_df.head())
-        # Plot the explained variances
-        features = range(pca.n_components_)
-        self.dv.datas = transformed_df
-        self.dv.plot(x=features, y=pca.explained_variance_ratio_, x_label="Features", y_label="Explained variance ratio", 
-                     title="Explained variance ratio by features")
+        transformed = pca.fit_transform(self.df)
+        # Sort components to see wich one explaine the most the covariance
+        covariance = pca.explained_variance_ratio_
+        pca_df = pd.DataFrame({"covariance" : covariance, "component" : range(0, len(covariance))})
+        # We save the pca_df for later to show our clusters
+        self.pca_df = pd.DataFrame(transformed)
+        self.dv.datas = pca_df
+        self.dv.plot(x="component", y="covariance", plot_type="bar", x_label="Compnents", 
+                     y_label="Covariance", title="Covariances explained by components")
+        # Keep only components that explained 90% of covariance of the dataset
+        covariance_score = 0
+        rows_to_keep = []
+        print(pca_df.shape)
+        composents = pca.components_
+        for col, values in pca_df.iterrows():
+            covariance_score += values["covariance"]
+            rows_to_keep.append(np.argmax(np.abs(composents[col])))
+            if covariance_score >= 0.98:
+                break
+        # Reduce the features to keep only the ones that explained 90% of the covariance
+        print(f"Colones to keep : {self.df.columns[rows_to_keep]}")
+        self.df = self.df[self.df.columns[rows_to_keep]]
+        print("Dimentions reduced...\n")
         pass
 
 
@@ -102,7 +128,7 @@ class Pipeline:
         self.df = impute_missing_values(self.df, columns=self.df.columns, missing_values=nan_value, n_neighbors=5, weights='uniform')
         # Remove outliers
         print(f"{indent} - Remove outliers...")
-        self.df = manage_outliers(self.df, self.df.columns, method='all', contamination=0.05)
+        self.df = manage_outliers(self.df, self.df.columns, method='isolationforest', contamination=0.05)
         # Downcast features to reduce memory size
         print(f"{indent} - Downcast features to reduce memory size...")
         self.df = self.filter.downcast(self.df)
@@ -124,7 +150,9 @@ class Pipeline:
         """Save dataset to CSV file"""
         print("Saving dataset...")
         # Save the current dataframe to CSV file adding the current date to the filename
-        self.df.to_csv("./Saves/Datasets/dataset_" + datetime.now().strftime("%d-%m-%Y %Hh%Mm%Ss") + ".csv", index=False)
+        # We don't save it if it's a loaded one to prevent duplicates
+        if self.load is None:
+            self.df.to_csv("./Saves/Datasets/dataset_" + datetime.now().strftime("%d-%m-%Y %Hh%Mm%Ss") + ".csv", index=False)
         print("Dataset saved...\n")
         pass
 
@@ -132,16 +160,25 @@ class Pipeline:
         """Run clustering algorithm on dataset"""
         print("Running clustering algorithm...\n")
         # Run clustering algorithm
-        #kmeans(self.df, method="elbow")
-        #
-        #kmeans_model = KMeans(n_clusters=3, random_state=0)
-        #kmeans_model.fit(self.df)
-        #clusters = kmeans_model.predict(self.df)
-        #self.df["cluster"] = clusters
-        #dv = datas_visualizer()
-        #dv.datas = self.df
-        #dv.plot(x="trans-fat_100g", y="nutriscore_score", color="cluster", x_label="trans fat", y_label="nutriscore")
-        #print("Clustering algorithm runned...\n")
+        kmeans(self.df, method="elbow")
+        
+        kmeans_model = KMeans(n_clusters=4, random_state=0)
+        kmeans_model.fit(self.df)
+        clusters = kmeans_model.predict(self.df)
+        self.pca_df["cluster"] = np.array(map(str, clusters))
+        dv = datas_visualizer()
+        dv.datas = self.pca_df
+        columns_names = list(self.pca_df.columns)
+        dv.plot(x=columns_names[1], y=columns_names[0], color="cluster", x_label="Component 1", y_label="Component 0", 
+                title="PCA component 1 and 0 colored by cluster", plot_type="scatter")
+        cluster_datas = self.pca_df["cluster"].value_counts()
+        cluster_repartition_df = pd.DataFrame({"cluster" : cluster_datas.index, "count" : cluster_datas.values})
+        print("Cluster repartition :")
+        print(self.pca_df["cluster"].value_counts())
+        dv.datas = cluster_repartition_df
+        dv.plot(x="cluster", y="count", x_label="Clusters", y_label="Repartition", 
+                title="Proportion of elements in clusters", plot_type="bar")
+        print("Clustering algorithm runned...\n")
         pass
 
     def save_clusters(self):
@@ -154,28 +191,44 @@ class Pipeline:
 if __name__ == '__main__':
     VERSION = "1.0"
 
+    prediction_only = False
+    load = None
+
     # Command line arguments
     if len(sys.argv) >= 2:
-        for arg in sys.argv:
+        skip = False
+        for i in range(len(sys.argv)):
+            if i == 0 or skip == True:
+                skip = False
+                continue
+            arg = sys.argv[i]
+            print(f"{i} : {arg}")
             if arg == "-h":
                 print("Pipeline.py [-h] [-v] [-p <path>] [-l <datetime>]")
                 print("  -h : Display help")
                 print("  -v : Display version")
                 print("  -p <path> : Prediction only, Path to the dataset to predict")
                 print("  -l <datetime> : Load a dataset from a save, datetime is the date of the save")
-                exit()
+                exit(0)
             elif arg == "-v":
                 print("Pipeline Open Food Facts V" + VERSION)
-                exit()
+                exit(0)
             # Function will be added later
             elif arg == "-p":
-                print("Prediction only")
-                exit()
+                prediction_only = True
+                continue
             elif arg == "-l":
-                print("Load a dataset from a save")
-                exit()
-        print("Unknown argument " + arg)
-        exit()
+                if len(sys.argv) >= i + 2 :
+                    load = sys.argv[i+1]
+                    # Skip the next one because it's the value of the current arg
+                    skip = True
+                else:
+                    print("Missing path for -l")
+                    exit(1)
+                continue
+            else:
+                print("Unknown argument " + arg)
+                exit(1)
 
     print("#############################################")
     print("# Pipeline Open Food Facts V" + VERSION + "             #")
@@ -188,7 +241,7 @@ if __name__ == '__main__':
 
     print("Starting pipeline...\n")
     startingTime = time.time()    
-    pipeline = Pipeline()
+    pipeline = Pipeline(predict_only=prediction_only, load=load)
     pipeline.run()
     endingTime = time.time()
     print("End of pipeline.")
