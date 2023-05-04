@@ -58,6 +58,7 @@ def kmeans(dataset, k_min=2, k_max=10, method='elbow', inp_algo='auto', inp_init
         
         # Prompting the user to enter the value of k.
         k = input("Enter the value of k: ")
+        return k
         
     # Using silhouette method to select k.
     elif method == 'silhouette':

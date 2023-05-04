@@ -160,11 +160,23 @@ class Pipeline:
         """Run clustering algorithm on dataset"""
         print("Running clustering algorithm...\n")
         # Run clustering algorithm
-        kmeans(self.df, method="elbow")
+        k = int(kmeans(self.df, method="elbow"))
         
-        kmeans_model = KMeans(n_clusters=4, random_state=0)
+        kmeans_model = KMeans(n_clusters=k, random_state=0)
         kmeans_model.fit(self.df)
         clusters = kmeans_model.predict(self.df)
+        
+        self.plot_clusters(clusters)
+
+        #hie_clustering(self.df, n_clusters=k, plotdendrogram=True)
+
+        labels, silouhette = dbscan_clustering(self.df, eps=4, min_samples=5)
+        self.plot_clusters(labels)
+
+        print("Clustering algorithm runned...\n")
+        pass
+
+    def plot_clusters(self, clusters):
         self.pca_df["cluster"] = np.array(map(str, clusters))
         dv = datas_visualizer()
         dv.datas = self.pca_df
@@ -178,7 +190,6 @@ class Pipeline:
         dv.datas = cluster_repartition_df
         dv.plot(x="cluster", y="count", x_label="Clusters", y_label="Repartition", 
                 title="Proportion of elements in clusters", plot_type="bar")
-        print("Clustering algorithm runned...\n")
         pass
 
     def save_clusters(self):
